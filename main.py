@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 import string
-import nltk
 import spacy
 import Levenshtein
 from urllib.parse import unquote
