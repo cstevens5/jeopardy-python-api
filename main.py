@@ -1,13 +1,16 @@
 from fastapi import FastAPI
-import re
 import string
 import nltk
 import spacy
+import Levenshtein
+from urllib.parse import unquote
 
 app = FastAPI()
 
 # load in the pre-trained spacy model
 nlp = spacy.load('en_core_web_sm')
+
+# ------------- HELPER FUNCTIONS --------------------------------
 
 # function to preprocess a string of text
 # -- First NLP Step --
@@ -45,6 +48,15 @@ def is_person(text: str) -> bool:
             return True
     return False
 
+# function to determine if two strings are a close match
+# Uses Levenshtein distance, which compares the number of single character edits
+# needed to change one string into another
+# a threshold measure will be used to determine if the strings are close
+def is_close_match(user_input: str, correct_answer: str, threshold: float = 0.85) -> bool:
+    # text will always be preprocessed first so no need to do any of that here
+    ratio = Levenshtein.ratio(user_input, correct_answer)
+    return ratio >= threshold
+
 
 # function to call in the api route
 # returns whether the user response is correct
@@ -77,8 +89,17 @@ def is_correct(user_response: str, correct_response: str) -> bool:
     # (i.e. Vincent van Gogh), the user must enter the full name
     # This could be a source of improvement in the future
 
-    # Finally, apply comparison/similarity techniques to determine how similar the user's
+    # Finally, apply Levenshtein distance to determine how similar the user's
     # response is to the correct response -- this will allow the program to be less strict
     # in regards to typos and misspellings
+    return is_close_match(user_string, correct_string)
 
 
+# ------------- API ROUTES ---------------------------------------------
+
+@app.get("/is-correct")
+def check_answer_route(user_input: str, correct_input: str):
+    # decode params
+    user_input = unquote(user_input)
+    correct_input = unquote(correct_input)
+    return {"is_correct": is_correct(user_input, correct_input)}
